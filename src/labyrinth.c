@@ -39,15 +39,15 @@ int init_labyrinth(Labyrinth *labyrinth, int width, int height, int id, const ch
         }
     }
 
-    labyrinth->cells[0][1].room = ROOM;
-    labyrinth->cells[0][1].value = 2;  // Entrée
-    labyrinth->cells[labyrinth->height - 1][labyrinth->width - 2].room = ROOM;
-    labyrinth->cells[labyrinth->height - 1][labyrinth->width - 2].value = 3;
+    labyrinth->cells[0][1].room = ENTRY;
+    labyrinth->cells[0][1].value = ENTRY;  // Entrée
+    labyrinth->cells[labyrinth->height - 1][labyrinth->width - 2].room = EXIT;
+    labyrinth->cells[labyrinth->height - 1][labyrinth->width - 2].value = EXIT;  // Sortie
 
     return 0;
 }
 
-void display_labyrinth_with_player(Labyrinth *labyrinth, Position player, Position key, Position bonus, Position malus) {
+void display_labyrinth_with_player(Labyrinth *labyrinth, Position player, Position key, Position bonus, Position malus, Monster *monsters, int num_monsters) {
     // Vérifiez que les coordonnées du joueur sont valides
     if (player.x < 0 || player.x >= labyrinth->width || player.y < 0 || player.y >= labyrinth->height) {
         printf("Erreur: Coordonnées du joueur invalides.\n");
@@ -57,20 +57,33 @@ void display_labyrinth_with_player(Labyrinth *labyrinth, Position player, Positi
     // Afficher le labyrinthe avec le joueur
     for (int y = 0; y < labyrinth->height; y++) {
         for (int x = 0; x < labyrinth->width; x++) {
+
+            int is_monster = 0;
+            for (int i = 0; i < num_monsters; i++) {
+                if (monsters[i].x == x && monsters[i].y == y) {
+                    printf("👻");
+                    is_monster = 1;
+                    break;
+                }
+            }
+            if (is_monster) {
+                continue;
+            }
+
             if (player.x == x && player.y == y) {
-                printf("O ");  // Afficher le joueur
+                printf("🐵");  // Afficher le joueur
             } else if (key.x == x && key.y == y) {
                 printf("🔑");
             } else if (bonus.x == x && bonus.y == y) {
-                printf("☕");
+                printf("🍌");
             } else if (malus.x == x && malus.y == y) {
-                printf("🪫");
+                printf("💣");
             } else if (labyrinth->cells[y][x].room == WALL) {
-                printf("📚");  // Afficher un mur
+                printf("🌴");  // Afficher un mur
             } else if (labyrinth->cells[y][x].room == ENTRY) {
                 printf("  ");  // Afficher l'entrée
             } else if (labyrinth->cells[y][x].room == EXIT) {
-                printf("🎓");  // Afficher la sortie
+                printf("  ");  // Afficher la sortie
             } else {
                 printf("  ");  // Afficher une case vide
             }
@@ -79,6 +92,84 @@ void display_labyrinth_with_player(Labyrinth *labyrinth, Position player, Positi
     }
     printf("Positions : Joueur (%d, %d), Clé (%d, %d)\n",
     player.x, player.y, key.x, key.y); // Impression de débogage
+}
+
+
+void create_labyrinth(Labyrinth *labyrinth) {
+    int total_rooms = (labyrinth->width / 2) * (labyrinth->height / 2); // Calculer le nombre total de pièces
+    int connected_rooms = 1; // Initialiser le nombre de pièces connectées à 1
+
+    // Boucle jusqu'à ce que toutes les pièces soient connectées
+    while (connected_rooms < total_rooms) {
+        int x = rand() % (labyrinth->width - 2) + 1; 
+        int y = rand() % (labyrinth->height - 2) + 1; 
+
+        if (labyrinth->cells[y][x].room == WALL) { 
+            int dx = 0, dy = 0;
+            if (x % 2 == 0) {
+                dx = 1; // Si x est pair, on se déplace horizontalement
+            } else {
+                dy = 1; // Si x est impair, on se déplace verticalement
+            }
+
+            int nx = x + dx; 
+            int ny = y + dy; 
+            int px = x - dx;
+            int py = y - dy;
+
+            // Vérifier si les cellules voisines sont des pièces et ont des valeurs différentes
+            if (labyrinth->cells[ny][nx].room == ROOM && labyrinth->cells[py][px].room == ROOM &&
+                labyrinth->cells[ny][nx].value != labyrinth->cells[py][px].value) {
+                // Casser le mur pour connecter les pièces
+                labyrinth->cells[y][x].room = ROOM;
+                labyrinth->cells[y][x].value = labyrinth->cells[py][px].value;
+
+                int old_value = labyrinth->cells[ny][nx].value; // Sauvegarder l'ancienne valeur de la pièce
+                int new_value = labyrinth->cells[py][px].value; // Sauvegarder la nouvelle valeur de la pièce
+
+                // Mettre à jour toutes les cellules avec l'ancienne valeur pour qu'elles aient la nouvelle valeur
+                for (int i = 0; i < labyrinth->height; i++) {
+                    for (int j = 0; j < labyrinth->width; j++) {
+                        if (labyrinth->cells[i][j].value == old_value) {
+                            labyrinth->cells[i][j].value = new_value;
+                        }
+                    }
+                }
+
+                connected_rooms++; // Incrémenter le nombre de pièces connectées
+            }
+        }
+    }
+}
+
+int save_labyrinth(Labyrinth labyrinth, const char *filename) {
+    FILE *file = fopen(filename, "w");
+
+    if (file == NULL) {
+        return 1;
+    }
+
+    fprintf(file, "ID: %d\n", labyrinth.id);
+    fprintf(file, "Name: %s\n", labyrinth.name);
+    fprintf(file, "Width: %d\n", labyrinth.width);
+    fprintf(file, "Height: %d\n", labyrinth.height);
+
+    for (int i = 0; i < labyrinth.height; i++) {
+        for (int j = 0; j < labyrinth.width; j++) {
+            if (labyrinth.cells[i][j].value == ENTRY) {
+                fprintf(file, "2");
+            } else if (labyrinth.cells[i][j].value == EXIT) {
+                fprintf(file, "3");
+            } else {
+                fprintf(file, "%d", labyrinth.cells[i][j].room);
+            }
+        }
+        fprintf(file, "\n");
+    }
+
+    fclose(file);
+
+    return 0;
 }
 
 void find_entry(Labyrinth *labyrinth, Position *player) {
@@ -129,53 +220,6 @@ void place_malus(Labyrinth *labyrinth, Position *malus) {
     malus->y = y;
 }
 
-void create_labyrinth(Labyrinth *labyrinth) {
-    int total_rooms = (labyrinth->width / 2) * (labyrinth->height / 2); // Calculer le nombre total de pièces
-    int connected_rooms = 1; // Initialiser le nombre de pièces connectées à 1
-
-    // Boucle jusqu'à ce que toutes les pièces soient connectées
-    while (connected_rooms < total_rooms) {
-        int x = rand() % (labyrinth->width - 2) + 1; 
-        int y = rand() % (labyrinth->height - 2) + 1; 
-
-        if (labyrinth->cells[y][x].room == WALL) { 
-            int dx = 0, dy = 0;
-            if (x % 2 == 0) {
-                dx = 1; // Si x est pair, on se déplace horizontalement
-            } else {
-                dy = 1; // Si x est impair, on se déplace verticalement
-            }
-
-            int nx = x + dx; 
-            int ny = y + dy; 
-            int px = x - dx;
-            int py = y - dy;
-
-            // Vérifier si les cellules voisines sont des pièces et ont des valeurs différentes
-            if (labyrinth->cells[ny][nx].room == ROOM && labyrinth->cells[py][px].room == ROOM &&
-                labyrinth->cells[ny][nx].value != labyrinth->cells[py][px].value) {
-                // Casser le mur pour connecter les pièces
-                labyrinth->cells[y][x].room = ROOM;
-                labyrinth->cells[y][x].value = labyrinth->cells[py][px].value;
-
-                int old_value = labyrinth->cells[ny][nx].value; // Sauvegarder l'ancienne valeur de la pièce
-                int new_value = labyrinth->cells[py][px].value; // Sauvegarder la nouvelle valeur de la pièce
-
-                // Mettre à jour toutes les cellules avec l'ancienne valeur pour qu'elles aient la nouvelle valeur
-                for (int i = 0; i < labyrinth->height; i++) {
-                    for (int j = 0; j < labyrinth->width; j++) {
-                        if (labyrinth->cells[i][j].value == old_value) {
-                            labyrinth->cells[i][j].value = new_value;
-                        }
-                    }
-                }
-
-                connected_rooms++; // Incrémenter le nombre de pièces connectées
-            }
-        }
-    }
-}
-
 int verify_odd(const char *prompt) {
     int value;
     do {
@@ -186,36 +230,6 @@ int verify_odd(const char *prompt) {
         }
     } while (value % 2 == 0);
     return value;
-}
-
-int save_labyrinth(Labyrinth labyrinth, const char *filename) {
-    FILE *file = fopen(filename, "w");
-
-    if (file == NULL) {
-        return 1;
-    }
-
-    fprintf(file, "ID: %d\n", labyrinth.id);
-    fprintf(file, "Name: %s\n", labyrinth.name);
-    fprintf(file, "Width: %d\n", labyrinth.width);
-    fprintf(file, "Height: %d\n", labyrinth.height);
-
-    for (int i = 0; i < labyrinth.height; i++) {
-        for (int j = 0; j < labyrinth.width; j++) {
-            if (labyrinth.cells[i][j].room == ENTRY) {
-                fprintf(file, "2");
-            } else if (labyrinth.cells[i][j].room == EXIT) {
-                fprintf(file, "3");
-            } else {
-                fprintf(file, "%d", labyrinth.cells[i][j].room);
-            }
-        }
-        fprintf(file, "\n");
-    }
-
-    fclose(file);
-
-    return 0;
 }
 
 int load_labyrinth(Labyrinth *labyrinth, const char *filename) {
@@ -341,7 +355,109 @@ char* select_labyrinth() {
     return labyrinths[choice];  // Retourner le nom du labyrinthe choisi
 }
 
-void play_labyrinth(Labyrinth *labyrinth, Position *player) {
+
+void add_score(Leaderboard *leaderboard, const char *name, int score) {
+    if (leaderboard->count < MAX_SCORES) {
+        strcpy(leaderboard->entries[leaderboard->count].name, name);
+        leaderboard->entries[leaderboard->count].score = score;
+        leaderboard->count++;
+    } else {
+        if (score < leaderboard->entries[MAX_SCORES - 1].score) {
+            strcpy(leaderboard->entries[MAX_SCORES - 1].name, name);
+            leaderboard->entries[MAX_SCORES - 1].score = score;
+        }
+    }
+    // Trier les scores
+    for (int i = 0; i < leaderboard->count - 1; i++) {
+        for (int j = i + 1; j < leaderboard->count; j++) {
+            if (leaderboard->entries[i].score > leaderboard->entries[j].score) {
+                ScoreEntry temp = leaderboard->entries[i];
+                leaderboard->entries[i] = leaderboard->entries[j];
+                leaderboard->entries[j] = temp;
+            }
+        }
+    }
+}
+
+void save_leaderboard(const Leaderboard *leaderboard, const char *filename) {
+    FILE *file = fopen(filename, "w");
+    if (file == NULL) {
+        perror("Erreur lors de l'ouverture du fichier pour sauvegarder le leaderboard");
+        return;
+    }
+    fprintf(file, "%d\n", leaderboard->count);
+    for (int i = 0; i < leaderboard->count; i++) {
+        fprintf(file, "%s %d\n", leaderboard->entries[i].name, leaderboard->entries[i].score);
+    }
+    fclose(file);
+}
+
+void load_leaderboard(Leaderboard *leaderboard, const char *filename) {
+    FILE *file = fopen(filename, "r");
+    if (file == NULL) {
+        perror("Erreur lors de l'ouverture du fichier pour charger le leaderboard");
+        return;
+    }
+    fscanf(file, "%d\n", &leaderboard->count);
+    for (int i = 0; i < leaderboard->count; i++) {
+        fscanf(file, "%s %d\n", leaderboard->entries[i].name, &leaderboard->entries[i].score);
+    }
+    fclose(file);
+}
+
+void place_monsters(Labyrinth *labyrinth, Monster *monsters, int *num_monsters) {
+    int max_monsters = (labyrinth->width * labyrinth->height) / 40; // Ajustez ce ratio selon vos besoins
+    if (max_monsters > 4) {
+        max_monsters = 4; // Limite maximale de monstres
+    }
+
+    *num_monsters = max_monsters;
+    srand(time(NULL));
+    for (int i = 0; i < max_monsters; i++) {
+        int x, y;
+        do {
+            x = rand() % labyrinth->width;
+            y = rand() % labyrinth->height;
+        } while (labyrinth->cells[y][x].room != ROOM);
+
+        monsters[i].x = x;
+        monsters[i].y = y;
+    }
+}
+
+void move_monsters(Labyrinth *labyrinth, Monster *monsters, int num_monsters) {
+    srand(time(NULL));
+    for (int i = 0; i < num_monsters; i++) {
+        int direction = rand() % 4; // 0: haut, 1: bas, 2: gauche, 3: droite
+        int new_x = monsters[i].x;
+        int new_y = monsters[i].y;
+
+        switch (direction) {
+            case 0: // haut
+                new_y -= 1;
+                break;
+            case 1: // bas
+                new_y += 1;
+                break;
+            case 2: // gauche
+                new_x -= 1;
+                break;
+            case 3: // droite
+                new_x += 1;
+                break;
+        }
+
+        // Vérifier si le mouvement est valide (pas un mur)
+        if (new_x >= 0 && new_x < labyrinth->width &&
+            new_y >= 0 && new_y < labyrinth->height &&
+            labyrinth->cells[new_y][new_x].room != WALL) {
+            monsters[i].x = new_x;
+            monsters[i].y = new_y;
+        }
+    }
+}
+
+void play_labyrinth(Labyrinth *labyrinth, Position *player, Leaderboard *leaderboard, const char *labyrinth_name) {
 
     printf("Game Started!\n");
 
@@ -366,6 +482,12 @@ void play_labyrinth(Labyrinth *labyrinth, Position *player) {
     place_key(labyrinth, &key);
     place_bonus(labyrinth, &bonus);
     place_malus(labyrinth, &malus);
+
+    int num_monsters;
+    Monster monsters[5]; // Ajustez la taille maximale si nécessaire
+    place_monsters(labyrinth, monsters, &num_monsters);
+
+
     int has_key = 0;
     int score = 0;
 
@@ -377,7 +499,7 @@ void play_labyrinth(Labyrinth *labyrinth, Position *player) {
     char move;
     while (game_running) {
         printf("\033[H\033[J"); // Effacer l'écran
-        display_labyrinth_with_player(labyrinth, *player, key, bonus, malus); // Afficher le labyrinthe
+        display_labyrinth_with_player(labyrinth, *player, key, bonus, malus, monsters, num_monsters); // Afficher le labyrinthe
 
         printf("\033[%d;%dH", labyrinth->height + 2, 0);
         printf("Commandes :\n");
@@ -415,6 +537,7 @@ void play_labyrinth(Labyrinth *labyrinth, Position *player) {
             player->x = new_x;
             player->y = new_y;
             score++;
+            move_monsters(labyrinth, monsters, num_monsters);
         }
 
         // Vérification si le joueur a récupéré la clé
@@ -437,6 +560,17 @@ void play_labyrinth(Labyrinth *labyrinth, Position *player) {
             malus.x = -1; 
             malus.y = -1;
         }
+
+        // Vérification si le joueur a rencontré un monstre
+        for (int i = 0; i < num_monsters; i++) {
+            if (player->x == monsters[i].x && player->y == monsters[i].y) {
+                int monster_malus = (rand() % 16) + 5; // Malus aléatoire entre 5 et 20
+                score += monster_malus;
+                printf("Vous avez rencontré un monstre ! Malus : %d\n", monster_malus);
+                usleep(1000000); 
+                break;
+            }
+        }
         
         // Vérification de la sortie
         if (labyrinth->cells[player->y][player->x].room == EXIT) {
@@ -446,6 +580,18 @@ void play_labyrinth(Labyrinth *labyrinth, Position *player) {
                 printf("Votre score est de %d\n", score);
                 usleep(3000000);
                 disable_raw_mode(&orig_termios);
+
+                 // Vérifier si le score fait partie des 10 meilleurs
+                if (leaderboard->count < MAX_SCORES || score < leaderboard->entries[MAX_SCORES - 1].score) {
+                    char player_name[NAME_LENGTH];
+                    printf("Bravo! vous avez fait un des 10 meilleurs score. Entrez votre nom : ");
+                    scanf("%s", player_name);
+                    add_score(leaderboard, player_name, score);
+                    char leaderboard_filename[150];
+                    sprintf(leaderboard_filename, "./leaderboards/%s.leaderboard", labyrinth_name);
+                    save_leaderboard(leaderboard, leaderboard_filename);
+                }
+
                 return;
             } else {
                 printf("Il vous faut la clé pour sortir!\n");
@@ -457,4 +603,3 @@ void play_labyrinth(Labyrinth *labyrinth, Position *player) {
     disable_raw_mode(&orig_termios);
 
 }
-
