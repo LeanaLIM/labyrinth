@@ -65,3 +65,5 @@ void place_bonus(Labyrinth *labyrinth, Position *bonus);
 void place_malus(Labyrinth *labyrinth, Position *malus);
 void move_monsters(Labyrinth *labyrinth, Monster *monsters, int num_monsters);
 void place_monsters(Labyrinth *labyrinth, Monster *monsters, int *num_monsters);
+void add_score(Leaderboard *leaderboard, const char *name, int score);
+void save_leaderboard(const Leaderboard *leaderboard, const char *filename);
