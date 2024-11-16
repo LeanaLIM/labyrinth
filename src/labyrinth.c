@@ -151,7 +151,7 @@ int load_labyrinth(Labyrinth *labyrinth, const char *filename) {
         fclose(file);  // Fermer le fichier en cas d'erreur
         return 1;
     }
-
+    
     // Allouer de la mémoire pour chaque ligne de cellules
     for (int i = 0; i < labyrinth->height; i++) {
         labyrinth->cells[i] = (cellType *)malloc(labyrinth->width * sizeof(cellType));

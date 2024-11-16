@@ -2,28 +2,36 @@ CC=gcc
 CCFLAGS= -Wall -Wextra
 CPPFLAGS= -I ./include
 LDFLAGS= -lncurses
-OBJS= main.o labyrinth.o monster.o player.o leaderboard.o
+OBJDIR=./obj
+OBJS= $(OBJDIR)/main.o $(OBJDIR)/labyrinth.o $(OBJDIR)/monster.o $(OBJDIR)/player.o $(OBJDIR)/leaderboard.o
+TEST_OBJS= $(OBJDIR)/test_labyrinth.o $(OBJDIR)/labyrinth.o
 
 all: labyrinth
 
 labyrinth: $(OBJS)
 	$(CC) $^ $(LDFLAGS) -o $@
 
-main.o: src/main.c
+$(OBJDIR)/main.o: src/main.c
 	$(CC) $(CCFLAGS) $(CPPFLAGS) $< -c -o $@
 
-labyrinth.o: src/labyrinth.c
+$(OBJDIR)/labyrinth.o: src/labyrinth.c
 	$(CC) $(CCFLAGS) $(CPPFLAGS) $< -c -o $@
 
-monster.o: src/monster.c
+$(OBJDIR)/monster.o: src/monster.c
 	$(CC) $(CCFLAGS) $(CPPFLAGS) $< -c -o $@
 
-player.o: src/player.c
+$(OBJDIR)/player.o: src/player.c
 	$(CC) $(CCFLAGS) $(CPPFLAGS) $< -c -o $@
 
-leaderboard.o: src/leaderboard.c
+$(OBJDIR)/leaderboard.o: src/leaderboard.c
 	$(CC) $(CCFLAGS) $(CPPFLAGS) $< -c -o $@
+
+$(OBJDIR)/test_labyrinth.o: tests/test_labyrinth.c
+	$(CC) $(CCFLAGS) $(CPPFLAGS) $< -c -o $@
+
+test: $(TEST_OBJS)
+	$(CC) $^ $(LDFLAGS) -o tests/test_labyrinth
+	./tests/test_labyrinth
 
 clean:
-	rm *.o
-	
+	rm -f $(OBJDIR)/*.o labyrinth tests/test_labyrinth

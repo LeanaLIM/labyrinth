@@ -100,7 +100,7 @@ void play_labyrinth(Labyrinth *labyrinth, Position *player, Leaderboard *leaderb
             bonus.y = -1;
         }
 
-        // Vérification si le joueur a récupéré la clé
+        // Vérification si le joueur est tombé sur un piège
         if (player->x == malus.x && player->y == malus.y) {
             score += 15;
             malus.x = -1; 
